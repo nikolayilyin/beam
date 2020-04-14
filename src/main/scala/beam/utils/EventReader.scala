@@ -19,9 +19,7 @@ import org.supercsv.prefs.CsvPreference
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
-class DummyEvent(attribs: java.util.Map[String, String]) extends Event(attribs.get("time").toDouble) {
-  override def getEventType: String = attribs.get("type")
-
+class DummyEvent(attribs: java.util.Map[String, String]) extends GenericEvent(attribs.get("type"), attribs.get("time").toDouble) {
   override def getAttributes: util.Map[String, String] = attribs
 }
 
@@ -45,7 +43,7 @@ object EventReader {
   }
 
   def fromCsvReader(rdr: Reader, filterPredicate: Event => Boolean): (Iterator[Event], Closeable) = {
-    readAs[Event](rdr, x => new DummyEvent(x), filterPredicate)
+    readAs[Event](rdr, x => fixEvent(new DummyEvent(x)), filterPredicate)
   }
 
   private def readAs[T](rdr: Reader, mapper: java.util.Map[String, String] => T, filterPredicate: T => Boolean)(
@@ -107,6 +105,8 @@ object EventReader {
         AgencyRevenueEvent.apply(event)
       case ReplanningEvent.EVENT_TYPE =>
         ReplanningEvent.apply(event)
+      case RefuelSessionEvent.EVENT_TYPE =>
+        RefuelSessionEvent.apply(event)
       case _ =>
         event
     }

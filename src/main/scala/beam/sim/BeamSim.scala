@@ -10,15 +10,11 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
-import beam.analysis.cartraveltime.{
-  CarTripStatsFromPathTraversalEventHandler,
-  StudyAreaTripFilter,
-  TakeAllTripsTripFilter
-}
+import beam.analysis.cartraveltime.{CarTripStatsFromPathTraversalEventHandler, StudyAreaTripFilter, TakeAllTripsTripFilter}
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
-import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtilizationCollector}
+import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailFleetAnalysis, RideHailUtilizationCollector}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.osm.TollCalculator
 import beam.router.skim.Skims
@@ -26,6 +22,12 @@ import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.sim.metrics.{Metrics, MetricsSupport}
+import beam.utils.EventReader
+import org.matsim.api.core.v01.events.Event
+import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
+import org.matsim.core.events.handler.BasicEventHandler
+
+import scala.util.Try
 //import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 //import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
@@ -130,6 +132,18 @@ class BeamSim @Inject()(
   }
 
   var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
+
+  val c = new RideHailFleetAnalysis(beamServices)
+  // The file is downloaded from https://beam-outputs.s3.amazonaws.com/output/austin/austin-prod-200k-skims-with-h3-index__2020-04-14_07-06-56_xah/ITERS/it.0/0.events.csv.gz
+  val (it, toClose) = EventReader.fromCsvFile("C:/Users/User/Downloads/0.events.csv.gz", _ => true)
+  try {
+    it.foreach { event =>
+      c.processStats(event)
+    }
+  }
+  finally {
+    Try(toClose.close())
+  }
 
   override def notifyStartup(event: StartupEvent): Unit = {
     maybeConsecutivePopulationLoader =

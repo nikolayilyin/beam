@@ -5,19 +5,20 @@ import java.util
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.ParkingStall
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.Event
+import org.matsim.api.core.v01.events.{Event, GenericEvent}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
+import collection.JavaConverters._
 
 case class RefuelSessionEvent(
   tick: Double,
   stall: ParkingStall,
-  val energyInJoules: Double,
-  val sessionStartingFuelLevelInJoules: Double,
-  val sessionDuration: Double,
+  energyInJoules: Double,
+  sessionStartingFuelLevelInJoules: Double,
+  sessionDuration: Double,
   vehId: Id[Vehicle],
-  val vehicleType: BeamVehicleType
+  vehicleType: BeamVehicleType
 ) extends Event(tick)
     with HasPersonId
     with ScalaEvent {
@@ -27,9 +28,9 @@ case class RefuelSessionEvent(
   override def getPersonId: Id[Person] = Id.create(vehId, classOf[Person])
   override def getEventType: String = EVENT_TYPE
 
-  val pricingModelString = stall.pricingModel.map { _.toString }.getOrElse("None")
-  val chargingPointString = stall.chargingPointType.map { _.toString }.getOrElse("None")
-  val parkingType: String = stall.parkingType.toString
+  lazy val pricingModelString = stall.pricingModel.map { _.toString }.getOrElse("None")
+  lazy val chargingPointString = stall.chargingPointType.map { _.toString }.getOrElse("None")
+  lazy val parkingType: String = stall.parkingType.toString
 
   override def getAttributes: util.Map[String, String] = {
     val attributes = super.getAttributes
@@ -61,4 +62,16 @@ object RefuelSessionEvent {
   val ATTRIBUTE_CHARGING_TYPE: String = "chargingType"
   val ATTRIBUTE_PARKING_TAZ: String = "parkingTaz"
   val ATTRIBUTE_VEHICLE_TYPE: String = "vehicleType"
+
+  def apply(genericEvent: GenericEvent): RefuelSessionEvent = {
+    assert(genericEvent.getEventType == EVENT_TYPE)
+    val attr = genericEvent.getAttributes
+    val tick = genericEvent.getTime
+    val energyInJoules = attr.get(ATTRIBUTE_ENERGY_DELIVERED).toDouble
+    val sessionDuration = attr.get(ATTRIBUTE_SESSION_DURATION).toDouble
+    val sessionStartingFuelLevelInJoules = 0
+    val vehId = Id.create(attr.get(ATTRIBUTE_VEHICLE_ID), classOf[Vehicle])
+    val vehicleType: BeamVehicleType = null
+    RefuelSessionEvent(tick, null, energyInJoules, sessionStartingFuelLevelInJoules, sessionDuration, vehId, null)
+  }
 }
