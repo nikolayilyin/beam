@@ -5,9 +5,9 @@ import beam.agentsim.events.{ParkingEvent, PathTraversalEvent, RefuelSessionEven
 import beam.analysis.plots.GraphAnalysis
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
-import beam.sim.metrics.SimulationMetricCollector
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.utils.ProfilingUtils
+import org.apache.curator.utils.DebugUtils
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -22,7 +22,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
   private val metersInMile: Double = 1609.34
   private val resolutionInSeconds = 60
   private val lastHour = 25
-  private val timeBins = 0 until lastHour * 3600 by resolutionInSeconds
+  private val timeBins = 0 until lastHour by 1 // 0 until lastHour * 3600 by resolutionInSeconds
   private var processedHour = 0
 
   private val states = List(
@@ -37,9 +37,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
     "parked"
   )
 
-  private val keys: Map[String, Int] = states.zipWithIndex.toMap
-
-  import RefuelSessionEvent._
+  private val keys = states.zipWithIndex.toMap
 
   private val rideHailEvCav = mutable.Map[String, ArrayBuffer[Event]]()
   private val ridehailEvNonCav = mutable.Map[String, ArrayBuffer[Event]]()
@@ -156,7 +154,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
     vehicleEventTypeMap(vehicle) = events.sortBy(_.getTime)
     val hour = (eventHour / 3600).toInt
     if (hour > processedHour) {
-      ProfilingUtils.timed(s"processVehicleStates for hour ${hour}", x => println(x)) {
+      ProfilingUtils.timed(s"processVehicleStates for hour $hour", x => println(x)) {
         processVehicleStates()
       }
       processedHour = hour
@@ -178,41 +176,15 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
   ) {
     var timeUtilization = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
     var distanceUtilization = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
-
-    val timeUtilizationNew = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
-    val distanceUtilizationNew = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
-
     vehicleEventTypeMap.values.foreach(now => {
-      assignVehicleDayToLocationMatrix_new(now, isRH, isCAV, timeUtilizationNew, distanceUtilizationNew)
       val timesDistances = assignVehicleDayToLocationMatrix(now, isRH, isCAV)
-      timeUtilization = timesDistances._1.zip(timeUtilization).map(time => (time._1, time._2).zipped.map(_ + _))
+      timeUtilization = timesDistances._1
+        .zip(timeUtilization)
+        .map(time => (time._1, time._2).zipped.map(_ + _))
       distanceUtilization = timesDistances._2
         .zip(distanceUtilization)
         .map(distance => (distance._1, distance._2).zipped.map(_ + _))
-
-//      (1 to timeUtilization.length - 1).foreach { i =>
-//        val old: Array[Double] = timeUtilization(i)
-//        val improved: Array[Double] = timeUtilizationNew(i)
-//        if (old.toVector != improved.toVector) {
-//          println(
-//            s"""timeUtilization is not equal at index $i:
-//               |old:      ${old.toVector}
-//               |improved: ${improved.toVector}""".stripMargin)
-//        }
-//      }
-//
-//      (1 to distanceUtilization.length - 1).foreach { i =>
-//        val old: Array[Double] = distanceUtilization(i)
-//        val improved: Array[Double] = distanceUtilizationNew(i)
-//        if (old.toVector != improved.toVector) {
-//          println(
-//            s"""distanceUtilization is not equal at index $i:
-//               |old:      ${old.toVector}
-//               |improved: ${improved.toVector}""".stripMargin)
-//        }
-//      }
     })
-
 
     timeUtilization.transpose.zipWithIndex.foreach {
       case (row, index) =>
@@ -260,104 +232,11 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
     processedHour = 0
   }
 
-  private def assignVehicleDayToLocationMatrix_new(
+  private def assignVehicleDayToLocationMatrix(
     days: ArrayBuffer[Event],
     isRH: Boolean,
-    isCAV: Boolean,
-    timeUtilization: Array[Array[Double]],
-    distanceUtilization: Array[Array[Double]]
-  ): Unit = {
-    if (isRH) {
-      if (isCAV)
-        timeBins.indices.foreach(timeUtilization(_)(keys("idle")) += 1)
-      else
-        timeBins.indices.foreach(timeUtilization(_)(keys("offline")) += 1)
-    } else {
-      timeBins.indices.foreach(timeUtilization(_)(keys("parked")) += 1)
-    }
-
-    days.zipWithIndex.foreach(eventIndex => {
-      val event = eventIndex._1
-      val idx = eventIndex._2
-      val lastEvent = idx == days.size - 1
-      var chargingNext = false
-      var pickupNext = false
-
-      if (!lastEvent) {
-        val chargingDirectlyNext = days(idx + 1).getEventType == "RefuelSessionEvent"
-
-        val chargingOneAfter =
-          if (idx == days.size - 2)
-            false
-          else
-            days(idx + 1).getEventType == "ParkEvent" && days(idx + 2).getEventType == "RefuelSessionEvent"
-
-        chargingNext = chargingDirectlyNext || chargingOneAfter
-        pickupNext = days(idx + 1).getEventType == "PathTraversal" && days(idx + 1).getAttributes
-          .get(PathTraversalEvent.ATTRIBUTE_NUM_PASS)
-          .toInt >= 1
-      }
-
-      val eventCharacteristics = classifyEventLocation(event, lastEvent, chargingNext, pickupNext, isRH, isCAV)
-      val eventIdx = keys(eventCharacteristics.eventType)
-
-      val afterDurationEventStart = timeBins
-        .map(timeBin => {
-          val eventStart = timeBin >= eventCharacteristics.start
-          val duringEvent = eventStart && timeBin < eventCharacteristics.end
-          (eventStart, duringEvent)
-        })
-        .unzip
-
-      val afterEventStart = afterDurationEventStart._1
-      val duringEvent = afterDurationEventStart._2
-
-      afterEventStart.zipWithIndex.foreach(indexValue => {
-        //if (indexValue._1)
-          //timeUtilization(indexValue._2).indices.foreach(timeUtilization(indexValue._2)(_) = 0.0)
-      })
-
-      duringEvent.zipWithIndex.foreach(indexValue => {
-        if (indexValue._1) {
-          timeUtilization(indexValue._2)(eventIdx) += 1.0
-        }
-      })
-
-      if (event.getEventType == "PathTraversal") {
-        val sum = duringEvent.count(during => during)
-        val legLength = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH).toDouble
-        if (sum > 0) {
-          val meanDistancePerTime = legLength / sum
-          duringEvent.zipWithIndex.foreach(indexValue => {
-            if (indexValue._1) {
-              distanceUtilization(indexValue._2)(eventIdx) += meanDistancePerTime / metersInMile
-            }
-          })
-        } else {
-          val firstIndex = afterEventStart.indexOf(true)
-          if (firstIndex > 0)
-            distanceUtilization(firstIndex)(eventIdx) += legLength / metersInMile
-        }
-      }
-
-      eventCharacteristics.nextType.foreach(nextType => {
-        val afterEventEnd = timeBins.map(_ >= eventCharacteristics.end)
-        afterEventEnd.zipWithIndex.foreach(indexValue => {
-          if (indexValue._1) {
-            timeUtilization(indexValue._2)(keys(nextType)) += 1.0
-          }
-        })
-      })
-    })
-
-    (timeUtilization, distanceUtilization)
-  }
-
-  private def assignVehicleDayToLocationMatrix(
-                                                days: ArrayBuffer[Event],
-                                                isRH: Boolean,
-                                                isCAV: Boolean
-                                              ): (Array[Array[Double]], Array[Array[Double]]) = {
+    isCAV: Boolean
+  ): (Array[Array[Double]], Array[Array[Double]]) = {
     val timeUtilization = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
     val distanceUtilization = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
     if (isRH) {

@@ -10,7 +10,11 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
-import beam.analysis.cartraveltime.{CarTripStatsFromPathTraversalEventHandler, StudyAreaTripFilter, TakeAllTripsTripFilter}
+import beam.analysis.cartraveltime.{
+  CarTripStatsFromPathTraversalEventHandler,
+  StudyAreaTripFilter,
+  TakeAllTripsTripFilter
+}
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
@@ -134,14 +138,15 @@ class BeamSim @Inject()(
   var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
 
   val c = new RideHailFleetAnalysis(beamServices)
+
   // The file is downloaded from https://beam-outputs.s3.amazonaws.com/output/austin/austin-prod-200k-skims-with-h3-index__2020-04-14_07-06-56_xah/ITERS/it.0/0.events.csv.gz
-  val (it, toClose) = EventReader.fromCsvFile("C:/Users/User/Downloads/0.events.csv.gz", _ => true)
+  val (it, toClose) =
+    EventReader.fromCsvFile("/mnt/data/work/beam/test-data/EVCAV-performance-test-0.events.csv.gz", _ => true)
   try {
     it.foreach { event =>
       c.processStats(event)
     }
-  }
-  finally {
+  } finally {
     Try(toClose.close())
   }
 

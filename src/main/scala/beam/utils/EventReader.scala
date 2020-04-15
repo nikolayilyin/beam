@@ -19,7 +19,8 @@ import org.supercsv.prefs.CsvPreference
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
-class DummyEvent(attribs: java.util.Map[String, String]) extends GenericEvent(attribs.get("type"), attribs.get("time").toDouble) {
+class DummyEvent(attribs: java.util.Map[String, String])
+    extends GenericEvent(attribs.get("type"), attribs.get("time").toDouble) {
   override def getAttributes: util.Map[String, String] = attribs
 }
 
