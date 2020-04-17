@@ -2,6 +2,7 @@ package beam.analysis
 
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.utils.{BeamVehicleUtils, EventReader}
+import org.matsim.api.core.v01.events.Event
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.mutable
@@ -59,42 +60,44 @@ class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
     }
   }
 
-  "fleet analysis" must "return expected values" in {
-    val vehicleTypeFile = "test/input/sf-light/vehicleTypes.csv"
-    val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile(vehicleTypeFile)
+  // eventsFileBig was downloaded from https://beam-outputs.s3.amazonaws.com/output/austin/austin-prod-200k-skims-with-h3-index__2020-04-14_07-06-56_xah/ITERS/it.0/0.events.csv.gz
+  val eventsFileBig = "/mnt/data/work/beam/test-data/EVCAV-performance-test-0.events.csv.gz"
+  val eventsFileSmall = "/mnt/data/work/beam/test-data/EVCAV-performance-test-small-0.events.csv.gz"
 
-    vehicleTypes shouldNot be(empty)
+  val vehicleTypeFile = "test/input/sf-light/vehicleTypes.csv"
+  val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile(vehicleTypeFile)
 
-    val collectedMetrics: mutable.Map[String, Metrics] = mutable.Map.empty
+  vehicleTypes shouldNot be(empty)
 
-    def writeIteration(
-      metricName: String,
-      time: SimulationTime,
-      metricValue: Double = 1.0,
-      tags: Map[String, String] = Map.empty,
-      overwriteIfExist: Boolean = false
-    ): Unit = {
+  val collectedMetrics: mutable.Map[String, Metrics] = mutable.Map.empty
 
-      overwriteIfExist should be(true)
+  def writeIteration(
+    metricName: String,
+    time: SimulationTime,
+    metricValue: Double = 1.0,
+    tags: Map[String, String] = Map.empty,
+    overwriteIfExist: Boolean = false
+  ): Unit = {
 
-      collectedMetrics.get(metricName) match {
-        case Some(metrics) => metrics.Add(time, metricValue, tags)
-        case None =>
-          val metrics = new Metrics()
-          metrics.Add(time, metricValue, tags)
-          collectedMetrics(metricName) = metrics
-      }
+    overwriteIfExist should be(true)
+
+    collectedMetrics.get(metricName) match {
+      case Some(metrics) => metrics.Add(time, metricValue, tags)
+      case None =>
+        val metrics = new Metrics()
+        metrics.Add(time, metricValue, tags)
+        collectedMetrics(metricName) = metrics
     }
+  }
 
-    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternal(vehicleTypes, writeIteration)
+  def test(process: Event => Unit): Unit = {
 
-    // The file is downloaded from https://beam-outputs.s3.amazonaws.com/output/austin/austin-prod-200k-skims-with-h3-index__2020-04-14_07-06-56_xah/ITERS/it.0/0.events.csv.gz
-    val eventsFileBig = "/mnt/data/work/beam/test-data/EVCAV-performance-test-0.events.csv.gz"
-    val eventsFileSmall = "/mnt/data/work/beam/test-data/EVCAV-performance-test-small-0.events.csv.gz"
+    collectedMetrics.clear()
+
     val (it, toClose) = EventReader.fromCsvFile(eventsFileSmall, _ => true)
     try {
       it.foreach { event =>
-        RHFleetEventsAnalysis.processStats(event)
+        process(event)
       }
     } finally {
       Try(toClose.close())
@@ -102,14 +105,14 @@ class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
 
     collectedMetrics shouldNot be(empty)
 
-//    testExpectedOutputBig1(collectedMetrics)
-//    testExpectedOutputBig2(collectedMetrics)
-//    testExpectedOutputBig3(collectedMetrics)
-//    testExpectedOutputBig4(collectedMetrics)
-//    testExpectedOutputBig5(collectedMetrics)
-//    testExpectedOutputBig6(collectedMetrics)
-//    testExpectedOutputBig7(collectedMetrics)
-//    testExpectedOutputBig8(collectedMetrics)
+    //    testExpectedOutputBig1(collectedMetrics)
+    //    testExpectedOutputBig2(collectedMetrics)
+    //    testExpectedOutputBig3(collectedMetrics)
+    //    testExpectedOutputBig4(collectedMetrics)
+    //    testExpectedOutputBig5(collectedMetrics)
+    //    testExpectedOutputBig6(collectedMetrics)
+    //    testExpectedOutputBig7(collectedMetrics)
+    //    testExpectedOutputBig8(collectedMetrics)
 
     testExpectedOutputSmall1(collectedMetrics)
     testExpectedOutputSmall2(collectedMetrics)
@@ -122,19 +125,29 @@ class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
 
     println("done")
 
-//    var counter = 11
-//    collectedMetrics.foreach(entry => {
-//      val (metricName, metrics) = entry
-//      println()
-//      println(s"def testExpectedOutput$counter(collectedMetrics: mutable.Map[String, Metrics]): Unit = {")
-//
-//      //collectedMetrics("rh-ev-cav-count") ("vehicle-state:driving-topickup") (0) shouldBe 0.0
-//      metrics.Print("    collectedMetrics(\"" + metricName + "\")")
-//
-//      println("}")
-//      counter += 1
-//    })
+    //    var counter = 11
+    //    collectedMetrics.foreach(entry => {
+    //      val (metricName, metrics) = entry
+    //      println()
+    //      println(s"def testExpectedOutput$counter(collectedMetrics: mutable.Map[String, Metrics]): Unit = {")
+    //
+    //      //collectedMetrics("rh-ev-cav-count") ("vehicle-state:driving-topickup") (0) shouldBe 0.0
+    //      metrics.Print("    collectedMetrics(\"" + metricName + "\")")
+    //
+    //      println("}")
+    //      counter += 1
+    //    })  }
 
+  }
+
+  "fleet analysis V2" must "return expected values" in {
+    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
+    test(event => RHFleetEventsAnalysis.processStats(event))
+  }
+
+  "fleet analysis" must "return expected values" in {
+    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternal(vehicleTypes, writeIteration)
+    test(event => RHFleetEventsAnalysis.processStats(event))
   }
 
   def testExpectedOutputBig1(collectedMetrics: mutable.Map[String, Metrics]): Unit = {
