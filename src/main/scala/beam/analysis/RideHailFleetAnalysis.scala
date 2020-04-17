@@ -18,11 +18,24 @@ import scala.collection.mutable.ArrayBuffer
 case class EventStatus(start: Double, end: Double, eventType: String, nextType: Option[String] = None)
 
 class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
+  val rhFleetAnalysis = new RideHailFleetAnalysisInternal(
+    beamServices.beamScenario.vehicleTypes,
+    beamServices.simMetricCollector.writeIteration
+  )
 
+  override def createGraph(event: IterationEndsEvent): Unit = rhFleetAnalysis.createGraph()
+  override def processStats(event: Event): Unit = rhFleetAnalysis.processStats(event)
+  override def resetStats(): Unit = rhFleetAnalysis.resetStats()
+}
+
+class RideHailFleetAnalysisInternal(
+  vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
+  writeIteration: (String, SimulationTime, Double, Map[String, String], Boolean) => Unit
+) {
   private val metersInMile: Double = 1609.34
   private val resolutionInSeconds = 60
   private val lastHour = 25
-  private val timeBins = 0 until lastHour by 1 // 0 until lastHour * 3600 by resolutionInSeconds
+  private val timeBins = 0 until lastHour * 3600 by resolutionInSeconds
   private var processedHour = 0
 
   private val states = List(
@@ -44,7 +57,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
   private val rideHailNonEvCav = mutable.Map[String, ArrayBuffer[Event]]()
   private val rideHailNonEvNonCav = mutable.Map[String, ArrayBuffer[Event]]()
 
-  override def processStats(event: Event): Unit = {
+  def processStats(event: Event): Unit = {
     event match {
       case refuelSessionEvent: RefuelSessionEvent =>
         if (refuelSessionEvent.energyInJoules > 0.0) {
@@ -85,7 +98,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
       case pathTraversalEvent: PathTraversalEvent =>
         if (pathTraversalEvent.mode == BeamMode.CAR) {
           val vehicleTypeId = Id.create(pathTraversalEvent.vehicleType, classOf[BeamVehicleType])
-          val isCAV = beamServices.beamScenario.vehicleTypes(vehicleTypeId).automationLevel > 3
+          val isCAV = vehicleTypes(vehicleTypeId).automationLevel > 3
           val vehicle = pathTraversalEvent.vehicleId.toString
           val rideHail = vehicle.contains("rideHail")
           val ev = pathTraversalEvent.primaryFuelType == "Electricity"
@@ -138,7 +151,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
     }
   }
 
-  override def createGraph(event: IterationEndsEvent): Unit = {
+  def createGraph(): Unit = {
     processedHour = lastHour
     processVehicleStates()
   }
@@ -215,16 +228,16 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
 
   private def write(metric: String, value: Double, time: Int, key: String): Unit = {
     val tags = Map("vehicle-state" -> key)
-    beamServices.simMetricCollector.writeIteration(
+    writeIteration(
       metric,
       SimulationTime(time * 60 * 60),
       value,
       tags,
-      overwriteIfExist = true
+      true
     )
   }
 
-  override def resetStats(): Unit = {
+  def resetStats(): Unit = {
     rideHailEvCav.clear()
     ridehailEvNonCav.clear()
     rideHailNonEvCav.clear()

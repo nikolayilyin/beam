@@ -139,17 +139,6 @@ class BeamSim @Inject()(
 
   val c = new RideHailFleetAnalysis(beamServices)
 
-  // The file is downloaded from https://beam-outputs.s3.amazonaws.com/output/austin/austin-prod-200k-skims-with-h3-index__2020-04-14_07-06-56_xah/ITERS/it.0/0.events.csv.gz
-  val (it, toClose) =
-    EventReader.fromCsvFile("/mnt/data/work/beam/test-data/EVCAV-performance-test-0.events.csv.gz", _ => true)
-  try {
-    it.foreach { event =>
-      c.processStats(event)
-    }
-  } finally {
-    Try(toClose.close())
-  }
-
   override def notifyStartup(event: StartupEvent): Unit = {
     maybeConsecutivePopulationLoader =
       if (beamServices.beamConfig.beam.physsim.relaxation.`type` == "consecutive_increase_of_population") {
