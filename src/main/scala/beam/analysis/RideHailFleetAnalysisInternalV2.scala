@@ -192,22 +192,17 @@ class RideHailFleetAnalysisInternalV2(
       }
     }
 
-//    val utilization = vehicleEventTypeMap.values.par
-//      .map(now => {
-//        val (timeUtiliaztion_new, distanceUtilization_new) = assignVehicleDayToLocationMatrix(now, isRH, isCAV)
-//        new Utilization(timeUtiliaztion_new, distanceUtilization_new)
-//      })
-//      .fold(new Utilization()) {
-//        case (utilization, calculated_utilization) =>
-//          utilization.Add(calculated_utilization)
-//          utilization
-//      }
-
-    val utilization = new Utilization()
-    vehicleEventTypeMap.values.foreach(now => {
-      val (timeUtiliaztion_new, distanceUtilization_new) = assignVehicleDayToLocationMatrix(now, isRH, isCAV)
-      utilization.Add(timeUtiliaztion_new, distanceUtilization_new)
-    })
+    val utilization: Utilization = vehicleEventTypeMap.values.par
+      .map(now => {
+        val (timeUtiliaztion_new, distanceUtilization_new) = assignVehicleDayToLocationMatrix(now, isRH, isCAV)
+        new Utilization(timeUtiliaztion_new, distanceUtilization_new)
+      })
+      .seq
+      .fold(new Utilization()) {
+        case (utilization, calculated_utilization) =>
+          utilization.Add(calculated_utilization)
+          utilization
+      }
 
     utilization.time.transpose.zipWithIndex.foreach {
       case (row, index) =>

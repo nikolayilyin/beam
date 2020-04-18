@@ -116,7 +116,13 @@ class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
 
     collectedMetrics.clear()
 
-    val (it, toClose) = EventReader.fromCsvFile(eventsFileSmall, _ => true)
+    val doItFast = true
+    val printTestCases = false
+
+    val (it, toClose) =
+      if (doItFast) EventReader.fromCsvFile(eventsFileSmall, _ => true)
+      else EventReader.fromCsvFile(eventsFileBig, _ => true)
+
     try {
       it.foreach { event =>
         process(event)
@@ -127,32 +133,54 @@ class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
 
     collectedMetrics shouldNot be(empty)
 
-    testSmall(collectedMetrics)
+    if (doItFast) testSmall(collectedMetrics)
+    else testBig(collectedMetrics)
 
     println("done")
 
-    //    var counter = 11
-    //    collectedMetrics.foreach(entry => {
-    //      val (metricName, metrics) = entry
-    //      println()
-    //      println(s"def testExpectedOutput$counter(collectedMetrics: mutable.Map[String, Metrics]): Unit = {")
-    //
-    //      //collectedMetrics("rh-ev-cav-count") ("vehicle-state:driving-topickup") (0) shouldBe 0.0
-    //      metrics.Print("    collectedMetrics(\"" + metricName + "\")")
-    //
-    //      println("}")
-    //      counter += 1
-    //    })  }
+    if (printTestCases) {
+      var counter = 11
+      collectedMetrics.foreach(entry => {
+        val (metricName, metrics) = entry
+        println()
+        println(s"def testExpectedOutput$counter(collectedMetrics: mutable.Map[String, Metrics]): Unit = {")
 
+        //collectedMetrics("rh-ev-cav-count") ("vehicle-state:driving-topickup") (0) shouldBe 0.0
+        metrics.Print("    collectedMetrics(\"" + metricName + "\")")
+
+        println("}")
+        counter += 1
+      })
+    }
   }
 
-  "fleet analysis" must "return expected values" in {
+  "1. fleet analysis V2" must "return expected values" in {
+    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
+    test(event => RHFleetEventsAnalysis.processStats(event))
+  }
+
+  "1. fleet analysis" must "return expected values" in {
     val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternal(vehicleTypes, writeIteration)
     test(event => RHFleetEventsAnalysis.processStats(event))
   }
 
-  "fleet analysis V2" must "return expected values" in {
+  "2. fleet analysis V2" must "return expected values" in {
     val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
     test(event => RHFleetEventsAnalysis.processStats(event))
   }
+
+  "2. fleet analysis" must "return expected values" in {
+    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternal(vehicleTypes, writeIteration)
+    test(event => RHFleetEventsAnalysis.processStats(event))
+  }
+
+//  "3. fleet analysis" must "return expected values" in {
+//    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternal(vehicleTypes, writeIteration)
+//    test(event => RHFleetEventsAnalysis.processStats(event))
+//  }
+//
+//  "3. fleet analysis V2" must "return expected values" in {
+//    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
+//    test(event => RHFleetEventsAnalysis.processStats(event))
+//  }
 }
