@@ -22,6 +22,7 @@ class RideHailFleetAnalysisInternalV2(
   private val lastHour = 25
   private val secondsInHour = 60 * 60
   private val timeBins = 0 until lastHour * secondsInHour by resolutionInSeconds
+  private val timeBinsWithIndex = timeBins.zipWithIndex
   private var processedHour = 0
 
   private val states = List(
@@ -190,11 +191,11 @@ class RideHailFleetAnalysisInternalV2(
       def calculateDistance: Array[Array[Double]] =
         distanceInternal.map(arrayAdder => arrayAdder.map(adder => adder.doubleValue()))
 
-      def add(atime: Array[Array[Double]], adistance: Array[Array[Double]]): Unit = {
+      def add(time: Array[Array[Double]], distance: Array[Array[Double]]): Unit = {
         for (idx1 <- timeBins.indices;
              idx2 <- 0 until keys.values.max + 1) {
-          timeInternal(idx1)(idx2).add(atime(idx1)(idx2))
-          distanceInternal(idx1)(idx2).add(adistance(idx1)(idx2))
+          timeInternal(idx1)(idx2).add(time(idx1)(idx2))
+          distanceInternal(idx1)(idx2).add(distance(idx1)(idx2))
         }
       }
     }
@@ -272,25 +273,24 @@ class RideHailFleetAnalysisInternalV2(
 
     timeBins.indices.foreach(timeUtilization(_)(idleActionIndex) += 1)
 
-    days.zipWithIndex.foreach(eventIndex => {
-      val event = eventIndex._1
-      val idx = eventIndex._2
-      val lastEvent = idx == days.size - 1
+    var eventIndex = 0
+    days.foreach(event => {
+      val lastEvent = eventIndex == days.size - 1
 
       var chargingNext = false
       var pickupNext = false
 
       if (!lastEvent) {
-        val chargingDirectlyNext = days(idx + 1).getEventType == "RefuelSessionEvent"
+        val chargingDirectlyNext = days(eventIndex + 1).getEventType == "RefuelSessionEvent"
 
         val chargingOneAfter =
-          if (idx == days.size - 2)
+          if (eventIndex == days.size - 2)
             false
           else
-            days(idx + 1).getEventType == "ParkEvent" && days(idx + 2).getEventType == "RefuelSessionEvent"
+            days(eventIndex + 1).getEventType == "ParkEvent" && days(eventIndex + 2).getEventType == "RefuelSessionEvent"
 
         chargingNext = chargingDirectlyNext || chargingOneAfter
-        pickupNext = days(idx + 1) match {
+        pickupNext = days(eventIndex + 1) match {
           case pte: PathTraversalEvent => pte.numberOfPassengers >= 1
           case _                       => false
         }
@@ -298,26 +298,33 @@ class RideHailFleetAnalysisInternalV2(
 
       val eventCharacteristics = classifyEventLocation(event, lastEvent, chargingNext, pickupNext, isRH, isCAV)
 
-      val (afterEventStart, duringEvent) = timeBins
-        .map(timeBin => {
-          val eventStart = timeBin >= eventCharacteristics.start
-          val duringEvent = eventStart && timeBin < eventCharacteristics.end
-          (eventStart, duringEvent)
-        })
-        .unzip
+      val afterEventStart = Array.ofDim[Boolean](timeBins.size)
+      val duringEvent = Array.ofDim[Boolean](timeBins.size)
 
-      afterEventStart.zipWithIndex.foreach(indexValue => {
-        if (indexValue._1)
-          timeUtilization(indexValue._2).indices.foreach(actionIndex => {
-            timeUtilization(indexValue._2)(actionIndex) = 0.0
-          })
+      var idx = 0
+      timeBins.foreach(timeBin => {
+        afterEventStart(idx) = timeBin >= eventCharacteristics.start
+        duringEvent(idx) = afterEventStart(idx) && timeBin < eventCharacteristics.end
+        idx += 1
       })
 
-      val eventIdx = keys(eventCharacteristics.eventType)
-      duringEvent.zipWithIndex.foreach(indexValue => {
-        if (indexValue._1) {
-          timeUtilization(indexValue._2)(eventIdx) += 1.0
+      idx = 0
+      afterEventStart.foreach(eventWasStarted => {
+        if (eventWasStarted) {
+          timeUtilization(idx).indices.foreach(actionIndex => {
+            timeUtilization(idx)(actionIndex) = 0.0
+          })
         }
+        idx += 1
+      })
+
+      idx = 0
+      val eventTypeIdx = keys(eventCharacteristics.eventType)
+      duringEvent.foreach(eventIsContinuous => {
+        if (eventIsContinuous) {
+          timeUtilization(idx)(eventTypeIdx) += 1.0
+        }
+        idx += 1
       })
 
       event match {
@@ -326,27 +333,33 @@ class RideHailFleetAnalysisInternalV2(
           val legLength = pte.legLength
           if (sum > 0) {
             val meanDistancePerTime = legLength / sum
-            duringEvent.zipWithIndex.foreach(indexValue => {
-              if (indexValue._1) {
-                distanceUtilization(indexValue._2)(eventIdx) += meanDistancePerTime / metersInMile
+
+            idx = 0
+            duringEvent.foreach(eventIsContinuous => {
+              if (eventIsContinuous) {
+                distanceUtilization(idx)(eventTypeIdx) += meanDistancePerTime / metersInMile
               }
+              idx += 1
             })
+
           } else {
             val firstIndex = afterEventStart.indexOf(true)
             if (firstIndex > 0)
-              distanceUtilization(firstIndex)(eventIdx) += legLength / metersInMile
+              distanceUtilization(firstIndex)(eventTypeIdx) += legLength / metersInMile
           }
         case _ =>
       }
 
       eventCharacteristics.nextType.foreach(nextType => {
-        val afterEventEnd = timeBins.map(_ >= eventCharacteristics.end)
-        afterEventEnd.zipWithIndex.foreach(indexValue => {
-          if (indexValue._1) {
-            timeUtilization(indexValue._2)(keys(nextType)) += 1.0
-          }
-        })
+        timeBinsWithIndex.foreach {
+          case (timeBin, index) =>
+            if (timeBin >= eventCharacteristics.end) {
+              timeUtilization(index)(keys(nextType)) += 1.0
+            }
+        }
       })
+
+      eventIndex += 1
     })
 
     (timeUtilization, distanceUtilization)
