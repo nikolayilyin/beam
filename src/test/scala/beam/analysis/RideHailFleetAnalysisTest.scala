@@ -2,10 +2,9 @@ package beam.analysis
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
-import beam.utils.{BeamVehicleUtils, EventReader, ProfilingUtils}
+import beam.utils.{BeamVehicleUtils, EventReader}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
-import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.mutable
@@ -24,7 +23,7 @@ class Values(values: mutable.Map[Long, Double] = mutable.Map.empty) {
   }
 
   def print(prefix: String): Unit = {
-    //collectedMetrics("rh-ev-cav-count") ("vehicle-state:driving-topickup") (0) shouldBe 0.0
+    //collectedMetrics("rh-ev-cav-count") ("vehicle-state:driving-topickup") (0) shouldBe 0.0 +- precision
     values.toSeq
       .sortBy(_._1)
       .foreach(entry => {
@@ -59,7 +58,7 @@ class Metrics(val metrics: mutable.Map[String, Values] = mutable.Map.empty) exte
   }
 
   def print(prefix: String): Unit = {
-    //collectedMetrics("rh-ev-cav-count") ("vehicle-state:driving-topickup") (0) shouldBe 0.0
+    //collectedMetrics("rh-ev-cav-count") ("vehicle-state:driving-topickup") (0) shouldBe 0.0 +- precision
     metrics.foreach(entry => {
       val (tag, values) = entry
       values.print(prefix + "(\"" + tag + "\")")
@@ -74,9 +73,10 @@ class Metrics(val metrics: mutable.Map[String, Values] = mutable.Map.empty) exte
 
 class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
 
-  // eventsFileBig was downloaded from https://beam-outputs.s3.amazonaws.com/output/austin/austin-prod-200k-skims-with-h3-index__2020-04-14_07-06-56_xah/ITERS/it.0/0.events.csv.gz
-  val eventsFileBig = "/mnt/data/work/beam/test-data/EVCAV-performance-test-0.events.csv.gz"
-  val eventsFileSmall = "/mnt/data/work/beam/test-data/EVCAV-performance-test-small-0.events.csv.gz"
+  // eventsFileBig may be downloaded from https://beam-outputs.s3.amazonaws.com/output/austin/austin-prod-200k-skims-with-h3-index__2020-04-14_07-06-56_xah/ITERS/it.0/0.events.csv.gz
+  val eventsFileBig = ""
+  // eventsFileSmall may be obtained from any local sf-light-1k run
+  val eventsFileSmall = ""
 
   val vehicleTypeFile = "test/input/sf-light/vehicleTypes.csv"
 
@@ -107,33 +107,37 @@ class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
   }
 
   def testBig(metrics: mutable.Map[String, Metrics]): Unit = {
-    RideHailFleetAnalysisTestData.testExpectedOutputBig1(metrics)
-    RideHailFleetAnalysisTestData.testExpectedOutputBig2(metrics)
-    RideHailFleetAnalysisTestData.testExpectedOutputBig3(metrics)
-    RideHailFleetAnalysisTestData.testExpectedOutputBig4(metrics)
-    RideHailFleetAnalysisTestData.testExpectedOutputBig5(metrics)
-    RideHailFleetAnalysisTestData.testExpectedOutputBig6(metrics)
-    RideHailFleetAnalysisTestData.testExpectedOutputBig7(metrics)
-    RideHailFleetAnalysisTestData.testExpectedOutputBig8(metrics)
+//    RideHailFleetAnalysisTestData.testExpectedOutputBig1(metrics)
+//    RideHailFleetAnalysisTestData.testExpectedOutputBig2(metrics)
+//    RideHailFleetAnalysisTestData.testExpectedOutputBig3(metrics)
+//    RideHailFleetAnalysisTestData.testExpectedOutputBig4(metrics)
+//    RideHailFleetAnalysisTestData.testExpectedOutputBig5(metrics)
+//    RideHailFleetAnalysisTestData.testExpectedOutputBig6(metrics)
+//    RideHailFleetAnalysisTestData.testExpectedOutputBig7(metrics)
+//    RideHailFleetAnalysisTestData.testExpectedOutputBig8(metrics)
   }
 
   def testSmall(metrics: mutable.Map[String, Metrics]): Unit = {
-    RideHailFleetAnalysisTestData.testExpectedOutputSmall1(metrics)
-    RideHailFleetAnalysisTestData.testExpectedOutputSmall2(metrics)
-    RideHailFleetAnalysisTestData.testExpectedOutputSmall3(metrics)
-    RideHailFleetAnalysisTestData.testExpectedOutputSmall4(metrics)
-    RideHailFleetAnalysisTestData.testExpectedOutputSmall5(metrics)
-    RideHailFleetAnalysisTestData.testExpectedOutputSmall6(metrics)
-    RideHailFleetAnalysisTestData.testExpectedOutputSmall7(metrics)
-    RideHailFleetAnalysisTestData.testExpectedOutputSmall8(metrics)
+//    RideHailFleetAnalysisTestData.testExpectedOutputSmall1(metrics)
+//    RideHailFleetAnalysisTestData.testExpectedOutputSmall2(metrics)
+//    RideHailFleetAnalysisTestData.testExpectedOutputSmall3(metrics)
+//    RideHailFleetAnalysisTestData.testExpectedOutputSmall4(metrics)
+//    RideHailFleetAnalysisTestData.testExpectedOutputSmall5(metrics)
+//    RideHailFleetAnalysisTestData.testExpectedOutputSmall6(metrics)
+//    RideHailFleetAnalysisTestData.testExpectedOutputSmall7(metrics)
+//    RideHailFleetAnalysisTestData.testExpectedOutputSmall8(metrics)
   }
 
-  def test(process: Event => Unit): Unit = {
+  def test(process: Event => Unit, doItFast: Boolean = false, printTestCases: Boolean = false): Unit = {
+    throw new IllegalArgumentException(
+      """In order to use these tests you need to generate content of RideHailFleetAnalysisTestData
+        |based on events files you are going to use for tests.
+        |To do so, you need to specify eventsFileBig and/or eventsFileSmall and run 'test' method
+        |with `printTestCases` set to true. That will print you all methods for RideHailFleetAnalysisTestData.
+        |Then you will need to copy the printed methods into RideHailFleetAnalysisTestData class body.""".stripMargin
+    )
 
     collectedMetrics.clear()
-
-    val doItFast = false
-    val printTestCases = false
 
     val (it, toClose) =
       if (doItFast) EventReader.fromCsvFile(eventsFileSmall, _ => true)
@@ -169,7 +173,7 @@ class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
         println()
         println(s"def $funcNameGet$counter(collectedMetrics: mutable.Map[String, Metrics]): Unit = {")
 
-        //collectedMetrics("rh-ev-cav-count") ("vehicle-state:driving-topickup") (0) shouldBe 0.0
+        //collectedMetrics("rh-ev-cav-count") ("vehicle-state:driving-topickup") (0) shouldBe 0.0 +- precision
         metrics.print("    collectedMetrics(\"" + metricName + "\")")
 
         println("}")
@@ -178,32 +182,32 @@ class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
     }
   }
 
-  "1. V2 fleet analysis" must "return expected values" in {
+  "V2 fleet analysis" must "return expected metrics for BIG events file" in {
+    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
+    test(event => RHFleetEventsAnalysis.processStats(event), doItFast = false, printTestCases = false)
+  }
+
+  "V2 fleet analysis" must "return expected metrics for SMALL events file" ignore {
+    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
+    test(event => RHFleetEventsAnalysis.processStats(event), doItFast = true, printTestCases = false)
+  }
+
+  "1. V2 fleet analysis" must "return expected values" ignore {
     val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
     test(event => RHFleetEventsAnalysis.processStats(event))
   }
 
-  "1. fleet analysis" must "return expected values" in {
+  "1. fleet analysis" must "return expected values" ignore {
     val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternal(vehicleTypes, writeIteration)
     test(event => RHFleetEventsAnalysis.processStats(event))
   }
 
-  "2. V2 fleet analysis" must "return expected values" in {
+  "2. V2 fleet analysis" must "return expected values" ignore {
     val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
     test(event => RHFleetEventsAnalysis.processStats(event))
   }
 
-  "2. fleet analysis" must "return expected values" in {
-    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternal(vehicleTypes, writeIteration)
-    test(event => RHFleetEventsAnalysis.processStats(event))
-  }
-
-  "3. V2 fleet analysis" must "return expected values" in {
-    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
-    test(event => RHFleetEventsAnalysis.processStats(event))
-  }
-
-  "3. fleet analysis" must "return expected values" in {
+  "2. fleet analysis" must "return expected values" ignore {
     val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternal(vehicleTypes, writeIteration)
     test(event => RHFleetEventsAnalysis.processStats(event))
   }
