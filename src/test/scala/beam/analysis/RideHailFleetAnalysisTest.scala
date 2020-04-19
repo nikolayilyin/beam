@@ -182,35 +182,35 @@ class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
     }
   }
 
-  "V2 fleet analysis" must "return expected metrics for BIG events file" in {
-    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
-    test(event => RHFleetEventsAnalysis.processStats(event), doItFast = false, printTestCases = false)
-  }
-
-  "V2 fleet analysis" must "return expected metrics for SMALL events file" ignore {
-    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
-    test(event => RHFleetEventsAnalysis.processStats(event), doItFast = true, printTestCases = false)
-  }
-
-  "1. V2 fleet analysis" must "return expected values" ignore {
-    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
-    test(event => RHFleetEventsAnalysis.processStats(event))
-  }
-
-  "1. fleet analysis" must "return expected values" ignore {
-    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternal(vehicleTypes, writeIteration)
-    test(event => RHFleetEventsAnalysis.processStats(event))
-  }
-
-  "2. V2 fleet analysis" must "return expected values" ignore {
-    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
-    test(event => RHFleetEventsAnalysis.processStats(event))
-  }
-
-  "2. fleet analysis" must "return expected values" ignore {
-    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternal(vehicleTypes, writeIteration)
-    test(event => RHFleetEventsAnalysis.processStats(event))
-  }
+//  "V2 fleet analysis" must "return expected metrics for BIG events file" in {
+//    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
+//    test(event => RHFleetEventsAnalysis.processStats(event), doItFast = false, printTestCases = false)
+//  }
+//
+//  "V2 fleet analysis" must "return expected metrics for SMALL events file" ignore {
+//    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
+//    test(event => RHFleetEventsAnalysis.processStats(event), doItFast = true, printTestCases = false)
+//  }
+//
+//  "1. V2 fleet analysis" must "return expected values" ignore {
+//    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
+//    test(event => RHFleetEventsAnalysis.processStats(event))
+//  }
+//
+//  "1. fleet analysis" must "return expected values" ignore {
+//    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternal(vehicleTypes, writeIteration)
+//    test(event => RHFleetEventsAnalysis.processStats(event))
+//  }
+//
+//  "2. V2 fleet analysis" must "return expected values" ignore {
+//    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
+//    test(event => RHFleetEventsAnalysis.processStats(event))
+//  }
+//
+//  "2. fleet analysis" must "return expected values" ignore {
+//    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternal(vehicleTypes, writeIteration)
+//    test(event => RHFleetEventsAnalysis.processStats(event))
+//  }
 
   "doubles" must "be compared with tolerance" ignore {
     val precision = 0.000000001
