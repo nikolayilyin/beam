@@ -1,8 +1,11 @@
 package beam.analysis
 
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.utils.{BeamVehicleUtils, EventReader, ProfilingUtils}
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
+import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.mutable
@@ -12,7 +15,7 @@ class Values(values: mutable.Map[Long, Double] = mutable.Map.empty) {
 
   def apply(key: Long): Double = values.getOrElse(key, 0.0)
 
-  def Add(time: SimulationTime, value: Double): Unit = {
+  def add(time: SimulationTime, value: Double): Unit = {
     val hour = time.hours
     values.get(hour) match {
       case Some(oldValue) => values(hour) = value + oldValue
@@ -20,15 +23,21 @@ class Values(values: mutable.Map[Long, Double] = mutable.Map.empty) {
     }
   }
 
-  def Print(prefix: String): Unit = {
+  def print(prefix: String): Unit = {
     //collectedMetrics("rh-ev-cav-count") ("vehicle-state:driving-topickup") (0) shouldBe 0.0
     values.toSeq
       .sortBy(_._1)
       .foreach(entry => {
         val (hour, value) = entry
-        println(s"$prefix ($hour) shouldBe $value")
+        println(s"$prefix ($hour) shouldBe $value +- precision")
       })
+
     println("")
+  }
+
+  def min: Option[Double] = values.values.map(v => Math.abs(v)).filter(v => v != 0.0) match {
+    case Nil        => None
+    case collection => Some(collection.min)
   }
 }
 
@@ -36,25 +45,30 @@ class Metrics(val metrics: mutable.Map[String, Values] = mutable.Map.empty) exte
 
   def apply(key: String): Values = metrics.getOrElse(key, new Values())
 
-  def Add(time: SimulationTime, value: Double, tags: Map[String, String]): Unit = {
+  def add(time: SimulationTime, value: Double, tags: Map[String, String]): Unit = {
     tags.size should be(1)
 
     val tag = tags.head._1 + ":" + tags.head._2
     metrics.get(tag) match {
-      case Some(values) => values.Add(time, value)
+      case Some(values) => values.add(time, value)
       case None =>
         val values = new Values()
-        values.Add(time, value)
+        values.add(time, value)
         metrics(tag) = values
     }
   }
 
-  def Print(prefix: String): Unit = {
+  def print(prefix: String): Unit = {
     //collectedMetrics("rh-ev-cav-count") ("vehicle-state:driving-topickup") (0) shouldBe 0.0
     metrics.foreach(entry => {
       val (tag, values) = entry
-      values.Print(prefix + "(\"" + tag + "\")")
+      values.print(prefix + "(\"" + tag + "\")")
     })
+  }
+
+  def min: Option[Double] = metrics.values.flatMap(_.min) match {
+    case Nil        => None
+    case collection => Some(collection.min)
   }
 }
 
@@ -65,7 +79,9 @@ class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
   val eventsFileSmall = "/mnt/data/work/beam/test-data/EVCAV-performance-test-small-0.events.csv.gz"
 
   val vehicleTypeFile = "test/input/sf-light/vehicleTypes.csv"
-  val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile(vehicleTypeFile)
+
+  val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] =
+    BeamVehicleUtils.readBeamVehicleTypeFile(vehicleTypeFile)
 
   vehicleTypes shouldNot be(empty)
 
@@ -82,10 +98,10 @@ class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
     overwriteIfExist should be(true)
 
     collectedMetrics.get(metricName) match {
-      case Some(metrics) => metrics.Add(time, metricValue, tags)
+      case Some(metrics) => metrics.add(time, metricValue, tags)
       case None =>
         val metrics = new Metrics()
-        metrics.Add(time, metricValue, tags)
+        metrics.add(time, metricValue, tags)
         collectedMetrics(metricName) = metrics
     }
   }
@@ -116,7 +132,7 @@ class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
 
     collectedMetrics.clear()
 
-    val doItFast = true
+    val doItFast = false
     val printTestCases = false
 
     val (it, toClose) =
@@ -139,14 +155,22 @@ class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
     println("done")
 
     if (printTestCases) {
-      var counter = 11
+
+      collectedMetrics.values.flatMap(_.min) match {
+        case Nil        => println("there is no MIN value at all, only zeros")
+        case collection => println(s"min value is: ${collection.min}")
+      }
+
+      def funcNameGet: String = if (doItFast) "testExpectedOutputSmall" else "testExpectedOutputBig"
+
+      var counter = 1
       collectedMetrics.foreach(entry => {
         val (metricName, metrics) = entry
         println()
-        println(s"def testExpectedOutput$counter(collectedMetrics: mutable.Map[String, Metrics]): Unit = {")
+        println(s"def $funcNameGet$counter(collectedMetrics: mutable.Map[String, Metrics]): Unit = {")
 
         //collectedMetrics("rh-ev-cav-count") ("vehicle-state:driving-topickup") (0) shouldBe 0.0
-        metrics.Print("    collectedMetrics(\"" + metricName + "\")")
+        metrics.print("    collectedMetrics(\"" + metricName + "\")")
 
         println("}")
         counter += 1
@@ -154,7 +178,7 @@ class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
     }
   }
 
-  "1. fleet analysis V2" must "return expected values" in {
+  "1. V2 fleet analysis" must "return expected values" in {
     val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
     test(event => RHFleetEventsAnalysis.processStats(event))
   }
@@ -164,7 +188,7 @@ class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
     test(event => RHFleetEventsAnalysis.processStats(event))
   }
 
-  "2. fleet analysis V2" must "return expected values" in {
+  "2. V2 fleet analysis" must "return expected values" in {
     val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
     test(event => RHFleetEventsAnalysis.processStats(event))
   }
@@ -174,13 +198,84 @@ class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
     test(event => RHFleetEventsAnalysis.processStats(event))
   }
 
-//  "3. fleet analysis" must "return expected values" in {
-//    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternal(vehicleTypes, writeIteration)
-//    test(event => RHFleetEventsAnalysis.processStats(event))
-//  }
-//
-//  "3. fleet analysis V2" must "return expected values" in {
-//    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
-//    test(event => RHFleetEventsAnalysis.processStats(event))
-//  }
+  "3. V2 fleet analysis" must "return expected values" in {
+    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
+    test(event => RHFleetEventsAnalysis.processStats(event))
+  }
+
+  "3. fleet analysis" must "return expected values" in {
+    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternal(vehicleTypes, writeIteration)
+    test(event => RHFleetEventsAnalysis.processStats(event))
+  }
+
+  "doubles" must "be compared with tolerance" ignore {
+    val precision = 0.000000001
+    3601.4623522256534 shouldBe 3601.4623522256525 +- precision
+  }
+
+  "sync operation" must "return expected values" ignore {
+
+    class MyType(private var content: Double = 0.0) {
+      def getContent: Double = { synchronized { content } }
+
+      def Add(secondMyTypeObject: MyType): Unit = {
+        content = content + secondMyTypeObject.getContent
+      }
+    }
+
+    def mapFunc(value: Int): MyType = {
+      val content = (0 to value by 2).map(_ * 3.0 / 5.0).sum
+      new MyType(content)
+    }
+
+    def foldFunc(accum: MyType, collectionItem: MyType): MyType = {
+      val funcInfo = s"collection item: ${collectionItem.getContent}"
+
+      val (retVal, changed) = {
+        if (collectionItem.getContent % 2 < 0.5 && accum.hashCode() != collectionItem.hashCode()) {
+          accum.Add(collectionItem)
+          (accum, "          ")
+        } else
+          (accum, " val SAME ")
+      }
+
+      val hashInfo =
+        if (accum.hashCode() == collectionItem.hashCode())
+          "hash SAME "
+        else
+          "          "
+      println(s"${accum.hashCode()} $hashInfo $changed ret acc val: ${retVal.getContent} $funcInfo") // acc hash: ${accum.hashCode()} threadId: ${Thread.currentThread().getId}")
+      retVal
+    }
+
+    val regularSumInitValue = new MyType()
+    val parallelSumInitValue = new MyType()
+
+    def getParallelSeq = (0 to 100).par.map(mapFunc)
+    val parallelSum = getParallelSeq.fold(parallelSumInitValue)(foldFunc)
+    val regularSum = getParallelSeq.seq.fold(regularSumInitValue)(foldFunc)
+
+    regularSum.getContent shouldBe parallelSum.getContent
+
+    println(s"regular sum is: ${regularSum.getContent}")
+  }
+
+  "sync operation for Double" must "return expected values" ignore {
+    def mapFunc(value: Int): Double = (0 to value by 2).map(_ * 3.0 / 5.0).sum
+
+    def foldFunc(accum: Double, collectionItem: Double): Double = {
+      if (collectionItem % 2 < 0.5) accum + collectionItem
+      else accum
+    }
+
+    def getParallelSeq = (0 to 10000).par.map(mapFunc)
+
+    val regularSum = getParallelSeq.seq
+      .fold(0.0)(foldFunc)
+    val parallelSum = getParallelSeq
+      .fold(0.0)(foldFunc)
+
+    println(regularSum)
+    regularSum shouldBe parallelSum
+  }
 }

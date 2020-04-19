@@ -1,5 +1,7 @@
 package beam.analysis
 
+import java.util.concurrent.atomic.DoubleAdder
+
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.{ParkingEvent, PathTraversalEvent, RefuelSessionEvent}
 import beam.router.Modes.BeamMode
@@ -172,39 +174,39 @@ class RideHailFleetAnalysisInternalV2(
     graphName: String
   ) {
     class Utilization(
-      val time: Array[Array[Double]] = Array.ofDim[Double](timeBins.size, keys.values.max + 1),
-      val distance: Array[Array[Double]] = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
-    ) {
-      def Add(util: Utilization): Unit = {
-        for (idx1 <- timeBins.indices;
-             idx2 <- 0 until keys.values.max + 1) {
-          time(idx1)(idx2) += util.time(idx1)(idx2)
-          distance(idx1)(idx2) += util.distance(idx1)(idx2)
+      ) {
+      private val timeInternal: Array[Array[DoubleAdder]] =
+        Array.fill[DoubleAdder](timeBins.size, keys.values.max + 1) {
+          new DoubleAdder()
         }
-      }
+      private val distanceInternal: Array[Array[DoubleAdder]] =
+        Array.fill[DoubleAdder](timeBins.size, keys.values.max + 1) {
+          new DoubleAdder()
+        }
 
-      def Add(atime: Array[Array[Double]], adistance: Array[Array[Double]]): Unit = {
+      def calculateTime: Array[Array[Double]] =
+        timeInternal.map(arrayAdder => arrayAdder.map(adder => adder.doubleValue()))
+
+      def calculateDistance: Array[Array[Double]] =
+        distanceInternal.map(arrayAdder => arrayAdder.map(adder => adder.doubleValue()))
+
+      def add(atime: Array[Array[Double]], adistance: Array[Array[Double]]): Unit = {
         for (idx1 <- timeBins.indices;
              idx2 <- 0 until keys.values.max + 1) {
-          time(idx1)(idx2) += atime(idx1)(idx2)
-          distance(idx1)(idx2) += adistance(idx1)(idx2)
+          timeInternal(idx1)(idx2).add(atime(idx1)(idx2))
+          distanceInternal(idx1)(idx2).add(adistance(idx1)(idx2))
         }
       }
     }
 
-    val utilization: Utilization = vehicleEventTypeMap.values.par
-      .map(now => {
-        val (timeUtiliaztion_new, distanceUtilization_new) = assignVehicleDayToLocationMatrix(now, isRH, isCAV)
-        new Utilization(timeUtiliaztion_new, distanceUtilization_new)
-      })
-      .seq
-      .fold(new Utilization()) {
-        case (utilization, calculated_utilization) =>
-          utilization.Add(calculated_utilization)
-          utilization
-      }
+    val utilization: Utilization = new Utilization()
 
-    utilization.time.transpose.zipWithIndex.foreach {
+    vehicleEventTypeMap.values.par.foreach(vehicleEvents => {
+      val (timeUtilization, distanceUtilization) = assignVehicleDayToLocationMatrix(vehicleEvents, isRH, isCAV)
+      utilization.add(timeUtilization, distanceUtilization)
+    })
+
+    utilization.calculateTime.transpose.zipWithIndex.foreach {
       case (row, index) =>
         val key = states(index)
         val amountOfBinsPerHour = secondsInHour / resolutionInSeconds
@@ -218,7 +220,7 @@ class RideHailFleetAnalysisInternalV2(
         }
     }
 
-    utilization.distance.transpose.zipWithIndex.foreach {
+    utilization.calculateDistance.transpose.zipWithIndex.foreach {
       case (row, index) =>
         val key = states(index)
         val amountOfBinsPerHour = secondsInHour / resolutionInSeconds
