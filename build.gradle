@@ -33,6 +33,7 @@ reckon {
     // snapshotFromProp()
 }
 
+
 apply plugin: 'java'
 apply plugin: 'scala'
 apply plugin: 'maven'
@@ -45,7 +46,7 @@ apply plugin: 'scalafmt'
 apply plugin: 'com.bmuschko.docker-java-application'
 
 group = 'beam'
-version = '0.8.0'
+//version = '0.8.0'
 
 
 
