@@ -8,6 +8,8 @@ buildscript {
         mavenLocal()
         mavenCentral()
         maven { url "https://plugins.gradle.org/m2/" }
+
+
     }
     dependencies {
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
@@ -47,7 +49,6 @@ apply plugin: 'com.bmuschko.docker-java-application'
 
 group = 'beam'
 //version = '0.8.0'
-
 
 
 
