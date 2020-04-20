@@ -19,10 +19,18 @@ buildscript {
 }
 
 plugins {
+    id 'org.ajoberstar.reckon' version '0.12.0'
     id "net.ltgt.apt" version "0.5"
     id "de.undercouch.download" version "3.2.0"
     id "org.scoverage" version "2.5.0"
     id 'maven-publish'
+
+}
+reckon {
+    scopeFromProp()
+    stageFromProp('milestone', 'rc', 'final')
+    // alternative to stageFromProp
+    // snapshotFromProp()
 }
 
 apply plugin: 'java'
@@ -38,6 +46,9 @@ apply plugin: 'com.bmuschko.docker-java-application'
 
 group = 'beam'
 version = '0.8.0'
+
+
+
 
 description = """"""
 
