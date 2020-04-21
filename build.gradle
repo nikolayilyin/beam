@@ -323,6 +323,9 @@ configurations.all {
 
 //compileScala.dependsOn(scalafmtAll)
 
+task Testiiii() {
+    println("jiiiiiiiiii")
+}
 
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
