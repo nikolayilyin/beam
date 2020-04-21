@@ -323,9 +323,20 @@ configurations.all {
 
 //compileScala.dependsOn(scalafmtAll)
 
-task Testiiii() {
-    println("jiiiiiiiiii")
+task validBranch {
+    doLast {
+        def branch = ""
+        def proc = "git rev-parse --abbrev-ref HEAD".execute()
+        proc.in.eachLine { line -> branch = line }
+        proc.err.eachLine { line -> println line }
+        proc.waitFor()
+        if(branch != "develop") {
+            throw new Exception("can not release outsie from develop branch")
+        }
+    }
 }
+
+reckonTagPush.dependsOn validBranch
 
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
