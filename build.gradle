@@ -323,7 +323,8 @@ configurations.all {
 
 //compileScala.dependsOn(scalafmtAll)
 
-task validBranch(dependsOn: build) {
+task validBranch(dependsOn: classes) {
+
     doLast {
         def branch = ""
         def proc = "git rev-parse --abbrev-ref HEAD".execute()
