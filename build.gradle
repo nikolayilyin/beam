@@ -49,7 +49,7 @@ task validBranch(dependsOn: build) {
         }
     }
 }
-reckonTagPush.dependsOn validBranch
+reckonTagCreate.dependsOn validBranch
 
 
 apply plugin: 'java'
