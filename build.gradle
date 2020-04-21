@@ -44,7 +44,7 @@ task validBranch(dependsOn: build) {
         proc.err.eachLine { line -> println line }
         proc.waitFor()
         if(branch != "develop") {
-             throw new Exception("can not release outsie from develop branch")
+             throw new Exception("can not release outside from develop branch")
         }
     }
 }
