@@ -330,9 +330,9 @@ task validBranch {
         proc.in.eachLine { line -> branch = line }
         proc.err.eachLine { line -> println line }
         proc.waitFor()
-        if(branch != "develop") {
+       /* if(branch != "develop") {
             throw new Exception("can not release outsie from develop branch")
-        }
+        }*/
     }
 }
 
