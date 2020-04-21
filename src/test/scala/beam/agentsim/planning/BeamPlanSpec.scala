@@ -19,7 +19,7 @@ class BeamPlanSpec extends WordSpecLike with Matchers with BeamHelper {
   "A BeamPlan" must {
 
     val matsimPlanOfActivities: Plan = PopulationUtils.createPlan(null)
-    PopulationUtils.sdfsdfsdf(matsimPlanOfActivities, "Home", new Coord(0.0, 0.0))
+    PopulationUtils.createAndAddActivityFromCoord(matsimPlanOfActivities, "Home", new Coord(0.0, 0.0))
     PopulationUtils.createAndAddActivityFromCoord(matsimPlanOfActivities, "Work", new Coord(0.0, 0.0))
     PopulationUtils.createAndAddActivityFromCoord(matsimPlanOfActivities, "Shop", new Coord(0.0, 0.0))
     PopulationUtils.createAndAddActivityFromCoord(matsimPlanOfActivities, "Home", new Coord(0.0, 0.0))
