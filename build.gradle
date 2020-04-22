@@ -38,8 +38,7 @@ reckon {
 
 task validBranch(dependsOn: build) {
     doFirst {
-        def cgrgit = (Grgit) findProperty("grgit");
-        println(cgrgit.repository.jgit.fetch().call())
+        println(grgit.repository.credentials)
     }
     doLast {
         def branch = ""
