@@ -30,7 +30,6 @@ plugins {
 
 }
 reckon {
-    println("------------>>>>>>"+grgit.getBranch().current().find())
     scopeFromProp()
     stageFromProp('milestone', 'rc', 'final')
     // alternative to stageFromProp
@@ -38,6 +37,9 @@ reckon {
 }
 
 task validBranch(dependsOn: build) {
+    doFirst {
+        println(grgit.repository.jgit.fetch().call())
+    }
     doLast {
         def branch = ""
         def proc = "git rev-parse --abbrev-ref HEAD".execute()
