@@ -1,6 +1,7 @@
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import org.ajoberstar.grgit.Grgit
 
 buildscript {
     repositories {
@@ -29,6 +30,7 @@ plugins {
 
 }
 reckon {
+    println("------------>>>>>>"+grgit.branch)
     scopeFromProp()
     stageFromProp('milestone', 'rc', 'final')
     // alternative to stageFromProp
@@ -36,7 +38,6 @@ reckon {
 }
 
 task validBranch(dependsOn: build) {
-
     doLast {
         def branch = ""
         def proc = "git rev-parse --abbrev-ref HEAD".execute()
