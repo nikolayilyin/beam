@@ -1,3 +1,5 @@
+import org.ajoberstar.grgit.auth.GrgitSystemReader
+
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -38,7 +40,12 @@ reckon {
 
 task validBranch(dependsOn: build) {
     doFirst {
-        println(grgit.repository.credentials)
+        def GRGIT_USER = System.getenv('GRGIT_USER')
+        def GRGIT_PASS = System.getenv('GRGIT_PASS')
+        if(GRGIT_USER == null || GRGIT_PASS == null) {
+            throw new Exception("git credential not set!!!")
+        }
+        grgit.repository.credentials
     }
     doLast {
         def branch = ""
@@ -51,8 +58,12 @@ task validBranch(dependsOn: build) {
         }
     }
 }
-reckonTagCreate.dependsOn validBranch
 
+task testTask {
+    println(grgit.repository.credentials)
+}
+reckonTagCreate.dependsOn validBranch
+reckonTagPush.dependsOn testTask
 
 apply plugin: 'java'
 apply plugin: 'scala'
@@ -307,6 +318,8 @@ dependencies {
     compile group: 'de.lmu.ifi.dbs.elki', name: 'elki', version: '0.7.5'
 
     compile group: 'com.zaxxer', name: 'nuprocess', version: '1.2.4'
+
+    compile group: 'org.ajoberstar.grgit', name:'grgit-core', version: '4.0.2'
 
     def parquet = "1.10.0"
     compile group: 'org.apache.parquet', name: 'parquet-hadoop', version: parquet
