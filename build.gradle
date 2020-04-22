@@ -30,7 +30,7 @@ plugins {
 
 }
 reckon {
-    println("------------>>>>>>"+grgit.branch)
+    println("------------>>>>>>"+grgit.getBranch().current().find())
     scopeFromProp()
     stageFromProp('milestone', 'rc', 'final')
     // alternative to stageFromProp
