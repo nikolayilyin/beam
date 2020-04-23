@@ -1,10 +1,6 @@
-import org.ajoberstar.grgit.auth.GrgitSystemReader
-import org.eclipse.jgit.api.LsRemoteCommand
-
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
-import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider
 
 buildscript {
     repositories {
@@ -57,8 +53,23 @@ task validBranch() {
 
 task tagCleanup(){
     doFirst {
-        println(grgit.repository.jgit.tag().getName())
-        println(grgit.tag.toString())
+        def list = grgit.repository.jgit.tagList().call()
+        def localBranchTagList = new ArrayList<String>()
+        for(localBranch in list){
+            localBranchTagList.add(localBranch.name)
+        }
+        def remoteList = grgit.repository.jgit.lsRemote().call()
+        for(remoteBranch in remoteList) {
+            if(remoteBranch.name.contains("refs/tags") && localBranchTagList.contains(remoteBranch.name)){
+                localBranchTagList.remove(remoteBranch.name)
+            }
+        }
+
+        def delete = grgit.repository.jgit.tagDelete()
+        for(l in localBranchTagList) {
+            delete = delete.setTags(l.substring(l.lastIndexOf("/")+1, l.size()))
+        }
+        delete.call()
     }
 }
 
