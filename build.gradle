@@ -64,7 +64,7 @@ task tagCleanup() {
             def tag = localTagNames.get(i)
             tagsToBeDeleted[i] = tag.substring(tag.lastIndexOf("/") + 1, tag.size());
         }
-
+        throw new Exception("git credential not set!")
         grgit.repository.jgit.tagDelete().setTags(tagsToBeDeleted).call()
     }
 }
