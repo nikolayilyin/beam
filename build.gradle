@@ -48,11 +48,7 @@ task validBranch() {
         }
     }
     doLast {
-        def branch = ""
-        def proc = "git rev-parse --abbrev-ref HEAD".execute()
-        proc.in.eachLine { line -> branch = line }
-        proc.err.eachLine { line -> println line }
-        proc.waitFor()
+        def branch = grgit.getBranch().current().name
         if(branch != "test") {
              throw new Exception("can not release outside from develop branch")
         }
@@ -61,7 +57,7 @@ task validBranch() {
 
 task tagCleanup(){
     doFirst {
-        println("hello")
+        println(grgit.tag.toString())
     }
 }
 
