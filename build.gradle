@@ -39,33 +39,33 @@ task validBranch() {
     doFirst {
         def GRGIT_USER = System.getenv('GRGIT_USER')
         def GRGIT_PASS = System.getenv('GRGIT_PASS')
-        if(GRGIT_USER == null || GRGIT_PASS == null) {
-            throw new Exception("git credential not set!!!")
+        if (GRGIT_USER == null || GRGIT_PASS == null) {
+            throw new Exception("git credential not set!")
         }
     }
 }
 
-task tagCleanup(){
+task tagCleanup() {
     doFirst {
-        def list = grgit.repository.jgit.tagList().call()
-        def localBranchTagList = new ArrayList<String>()
-        for(localBranch in list){
-            localBranchTagList.add(localBranch.name)
+        def localTagRefs = grgit.repository.jgit.tagList().call()
+        def localTagNames = new ArrayList<String>()
+        for (tag in localTagRefs) {
+            localTagNames.add(tag.name)
         }
-        def remoteList = grgit.repository.jgit.lsRemote().call()
-        for(remoteBranch in remoteList) {
-            if(remoteBranch.name.contains("refs/tags") && localBranchTagList.contains(remoteBranch.name)){
-                localBranchTagList.remove(remoteBranch.name)
+        def remoteTagConfigs = grgit.repository.jgit.lsRemote().call()
+        for (remoteConfig in remoteTagConfigs) {
+            if (remoteConfig.name.contains("refs/tags") && localTagNames.contains(remoteConfig.name)) {
+                localTagNames.remove(remoteConfig.name)
             }
         }
 
-        def toBeDeleted = new ArrayList<String>();
-        for(l in localBranchTagList) {
-            toBeDeleted.add(l.substring(l.lastIndexOf("/")+1, l.size()));
+        def tagsToBeDeleted = new String[localTagNames.size()];
+        for (int i = 0; i < localTagNames.size(); i++) {
+            def tag = localTagNames.get(i)
+            tagsToBeDeleted[i] = tag.substring(tag.lastIndexOf("/") + 1, tag.size());
         }
-        def strArr = new String[toBeDeleted.size()]
-        def deletedTag = toBeDeleted.toArray(strArr)
-        grgit.repository.jgit.tagDelete().setTags(deletedTag).call()
+
+        grgit.repository.jgit.tagDelete().setTags(tagsToBeDeleted).call()
     }
 }
 
@@ -86,7 +86,6 @@ apply plugin: 'com.bmuschko.docker-java-application'
 
 group = 'beam'
 //version = '0.8.0'
-
 
 
 description = """"""
@@ -198,7 +197,7 @@ dependencies {
 
     compile "org.jgrapht:jgrapht-core:1.3.0"
 
-    compile ('com.github.LBNL-UCB-STI:or-tools-wrapper:7.5-0'){
+    compile('com.github.LBNL-UCB-STI:or-tools-wrapper:7.5-0') {
         exclude group: 'com.google.protobuf', module: 'protobuf-java'
     }
 
@@ -272,7 +271,7 @@ dependencies {
     compile group: 'io.circe', name: "circe-parser_${scalaBinaryVersion}", version: circeBinaryVersion
 
     compile group: 'com.typesafe.play', name: "play-json_${scalaBinaryVersion}", version: '2.6.3'
-    compile (group: 'com.github.romix.akka', name: "akka-kryo-serialization_${scalaBinaryVersion}", version: '0.5.2') {
+    compile(group: 'com.github.romix.akka', name: "akka-kryo-serialization_${scalaBinaryVersion}", version: '0.5.2') {
         exclude group: 'com.esotericsoftware', module: 'kryo'
     }
     compile group: 'com.esotericsoftware', name: 'kryo', version: '4.0.2'
@@ -327,7 +326,7 @@ dependencies {
 
     compile group: 'com.zaxxer', name: 'nuprocess', version: '1.2.4'
 
-    compile group: 'org.ajoberstar.grgit', name:'grgit-core', version: '4.0.2'
+    compile group: 'org.ajoberstar.grgit', name: 'grgit-core', version: '4.0.2'
 
     def parquet = "1.10.0"
     compile group: 'org.apache.parquet', name: 'parquet-hadoop', version: parquet
