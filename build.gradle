@@ -1,9 +1,10 @@
 import org.ajoberstar.grgit.auth.GrgitSystemReader
+import org.eclipse.jgit.api.LsRemoteCommand
 
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
-import org.ajoberstar.grgit.Grgit
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider
 
 buildscript {
     repositories {
@@ -38,14 +39,13 @@ reckon {
     // snapshotFromProp()
 }
 
-task validBranch(dependsOn: build) {
+task validBranch() {
     doFirst {
         def GRGIT_USER = System.getenv('GRGIT_USER')
         def GRGIT_PASS = System.getenv('GRGIT_PASS')
         if(GRGIT_USER == null || GRGIT_PASS == null) {
             throw new Exception("git credential not set!!!")
         }
-        grgit.repository.credentials
     }
     doLast {
         def branch = ""
@@ -59,11 +59,15 @@ task validBranch(dependsOn: build) {
     }
 }
 
-task testTask {
-    println(grgit.repository.credentials)
+task tagCleanup(){
+    doFirst {
+        println("hello")
+    }
 }
+
+reckonTagPush.finalizedBy(tagCleanup)
+
 reckonTagCreate.dependsOn validBranch
-reckonTagPush.dependsOn testTask
 
 apply plugin: 'java'
 apply plugin: 'scala'
