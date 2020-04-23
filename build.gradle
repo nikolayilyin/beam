@@ -65,12 +65,14 @@ task tagCleanup(){
             }
         }
 
-        println(localBranchTagList)
-        def delete = grgit.repository.jgit.tagDelete()
+        def toBeDeleted = new ArrayList<String>();
         for(l in localBranchTagList) {
-            delete = delete.setTags(l.substring(l.lastIndexOf("/")+1, l.size()))
+            toBeDeleted.add(l.substring(l.lastIndexOf("/")+1, l.size()));
         }
-        delete.call()
+        println(toBeDeleted)
+        def strArr = new String[toBeDeleted.size()]
+        def deletedTag = toBeDeleted.toArray(strArr)
+        grgit.repository.jgit.tagDelete().setTags(deletedTag).call()
     }
 }
 
