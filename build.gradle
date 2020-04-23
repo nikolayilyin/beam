@@ -67,8 +67,7 @@ task tagCleanup() {
         }
         catch (Exception e){
             println("Error with connecting repo")
-            println(grgit.tag.getProperty("name"))
-            grgit.repository.jgit.tagDelete().setTags(tagsToBeDeleted).call()
+            grgit.repository.jgit.tagDelete().setTags(project.getVersion().toString()).call()
         }
     }
 }
