@@ -33,12 +33,12 @@ reckon {
     stageFromProp('stable', 'rc', 'final')
 }
 
-task validBranch() {
+task checkIfGRGitCredentialsSet() {
     doFirst {
         def GRGIT_USER = System.getenv('GRGIT_USER')
         def GRGIT_PASS = System.getenv('GRGIT_PASS')
         if (GRGIT_USER == null || GRGIT_PASS == null) {
-            throw new Exception("git credential not set!")
+            throw new Exception("GRGIT credentials missing!")
         }
     }
 }
@@ -66,9 +66,10 @@ task tagCleanup() {
     }
 }
 
+reckonTagCreate.dependsOn checkIfGRGitCredentialsSet
 reckonTagPush.finalizedBy(tagCleanup)
 
-reckonTagCreate.dependsOn validBranch
+
 
 apply plugin: 'java'
 apply plugin: 'scala'
