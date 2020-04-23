@@ -30,9 +30,7 @@ plugins {
 }
 reckon {
     scopeFromProp()
-    stageFromProp('milestone', 'rc', 'final')
-    // alternative to stageFromProp
-    // snapshotFromProp()
+    stageFromProp('stable', 'rc', 'final')
 }
 
 task validBranch() {
@@ -45,6 +43,7 @@ task validBranch() {
     }
 }
 
+//removes local tag, if reckon tag push did not succeed, otherwise we would skip versions next time it succeeds
 task tagCleanup() {
     doFirst {
         def localTagRefs = grgit.repository.jgit.tagList().call()
@@ -58,13 +57,11 @@ task tagCleanup() {
                 localTagNames.remove(remoteConfig.name)
             }
         }
-
         def tagsToBeDeleted = new String[localTagNames.size()];
         for (int i = 0; i < localTagNames.size(); i++) {
             def tag = localTagNames.get(i)
             tagsToBeDeleted[i] = tag.substring(tag.lastIndexOf("/") + 1, tag.size());
         }
-        throw new Exception("git credential not set!")
         grgit.repository.jgit.tagDelete().setTags(tagsToBeDeleted).call()
     }
 }
