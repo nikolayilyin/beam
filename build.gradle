@@ -57,6 +57,7 @@ task validBranch() {
 
 task tagCleanup(){
     doFirst {
+        println(grgit.repository.jgit.tag().getName())
         println(grgit.tag.toString())
     }
 }
