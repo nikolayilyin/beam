@@ -51,18 +51,23 @@ task tagCleanup() {
         for (tag in localTagRefs) {
             localTagNames.add(tag.name)
         }
-        def remoteTagConfigs = grgit.repository.jgit.lsRemote().call()
-        for (remoteConfig in remoteTagConfigs) {
-            if (remoteConfig.name.contains("refs/tags") && localTagNames.contains(remoteConfig.name)) {
-                localTagNames.remove(remoteConfig.name)
+        try{
+            def remoteTagConfigs = grgit.repository.jgit.lsRemote().call()
+            for (remoteConfig in remoteTagConfigs) {
+                if (remoteConfig.name.contains("refs/tags") && localTagNames.contains(remoteConfig.name)) {
+                    localTagNames.remove(remoteConfig.name)
+                }
             }
+            def tagsToBeDeleted = new String[localTagNames.size()];
+            for (int i = 0; i < localTagNames.size(); i++) {
+                def tag = localTagNames.get(i)
+                tagsToBeDeleted[i] = tag.substring(tag.lastIndexOf("/") + 1, tag.size());
+            }
+            grgit.repository.jgit.tagDelete().setTags(tagsToBeDeleted).call()
         }
-        def tagsToBeDeleted = new String[localTagNames.size()];
-        for (int i = 0; i < localTagNames.size(); i++) {
-            def tag = localTagNames.get(i)
-            tagsToBeDeleted[i] = tag.substring(tag.lastIndexOf("/") + 1, tag.size());
+        catch (Exception e){
+            println("Error with connecting repo")
         }
-        grgit.repository.jgit.tagDelete().setTags(tagsToBeDeleted).call()
     }
 }
 
