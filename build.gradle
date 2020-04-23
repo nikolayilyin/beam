@@ -65,6 +65,7 @@ task tagCleanup(){
             }
         }
 
+        println(localBranchTagList)
         def delete = grgit.repository.jgit.tagDelete()
         for(l in localBranchTagList) {
             delete = delete.setTags(l.substring(l.lastIndexOf("/")+1, l.size()))
