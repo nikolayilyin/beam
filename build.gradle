@@ -43,7 +43,6 @@ task validBranch() {
             throw new Exception("git credential not set!!!")
         }
     }
-    throw new Exception("git credential not set!!!")
 }
 
 task tagCleanup(){
